@@ -3,15 +3,18 @@ package Codebits::API;
 use LWP;
 use JSON;
 use Moose;
+use Moose::Util::TypeConstraints;
+use Email::Valid;
 
-use Data::Dumper;
+use Codebits::User;
 
 our $VERSION  = '0.1';
 our $AUTHORITY = 'SMPB';
 
+
 has 'email' => (
   is    => 'ro',
-  isa   => 'Str',
+  isa   => subtype( 'Str' => where { Email::Valid->address($_) } ),
 );
 
 has 'password' => (
@@ -43,7 +46,7 @@ has 'user_agent' => (
 sub login
 {
   my $self  = shift;
-  my $url   = "https://services.sapo.pt/Codebits/gettoken";
+  my $url   = "https://services.sapo.pt/Codebits/gettoken/";
 
   unless ((defined $self->email) && (defined $self->password))
   {
@@ -69,6 +72,70 @@ sub login
   $self->_set_errstr($response->status_line);
   return 0;
 }
+
+sub get_user
+{
+  my ($self, $uid) = @_;
+  my $url  = "https://services.sapo.pt/Codebits/user/";
+
+  my $response = $self->user_agent->post($url . $uid, [ token => $self->token ]);
+
+  if ($response->is_success)
+  {
+    my $u = decode_json($response->content);
+
+    # this value comes as undef if the user hasn't applied yet
+    # and I don't really like that
+    $u->{status} = 'undefined' unless(defined $u->{status});
+    my $user = Codebits::User->new($u);
+    return $user;
+  }
+
+  $self->_set_errstr($response->status_line);
+  return 0;
+}
+
+sub get_user_friends
+{
+  my ($self, $uid, %options) = @_;
+  my $url  = "https://services.sapo.pt/Codebits/foaf/";
+
+  my $response = $self->user_agent->post($url . $uid, [ token => $self->token ]);
+
+  if ($response->is_success)
+  {
+    my $friends = [];
+
+    foreach my $u (@{decode_json($response->content)})
+    {
+      my $user;
+
+      if ($options{verbose} or $options{VERBOSE})
+      {
+        $user = $self->get_user($u->{id});
+        $user->md5mail($u->{md5mail});
+      }
+      else
+      {
+        $user = Codebits::User->new($u);
+      }
+
+      push(@{$friends}, $user);
+    }
+
+    return $friends;
+  }
+
+  $self->_set_errstr($response->status_line);
+  return 0;
+
+}
+
+sub get_accepted_users
+{
+
+}
+
 
 no Moose;
 1;
