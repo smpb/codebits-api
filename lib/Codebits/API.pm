@@ -78,6 +78,12 @@ sub get_user
   my ($self, $uid) = @_;
   my $url  = "https://services.sapo.pt/Codebits/user/";
 
+  unless (defined $uid)
+  {
+    $self->_set_errstr('valid user id needed');
+    return 0;
+  }
+
   my $response = $self->user_agent->post($url . $uid, [ token => $self->token ]);
 
   if ($response->is_success)
@@ -99,6 +105,12 @@ sub get_user_friends
 {
   my ($self, $uid, %options) = @_;
   my $url  = "https://services.sapo.pt/Codebits/foaf/";
+
+  unless (defined $uid)
+  {
+    $self->_set_errstr('valid user id needed');
+    return 0;
+  }
 
   my $response = $self->user_agent->post($url . $uid, [ token => $self->token ]);
 
@@ -128,12 +140,42 @@ sub get_user_friends
 
   $self->_set_errstr($response->status_line);
   return 0;
-
 }
 
+# TODO - It should've been possible to filter this list by skill, but the API appears
+# to be buggy and doesn't behave as advertised
 sub get_accepted_users
 {
+  my ($self, %options) = @_;
+  my $url  = "https://services.sapo.pt/Codebits/users/";
 
+  my $response = $self->user_agent->post($url, [ token => $self->token ]);
+
+  if ($response->is_success)
+  {
+    my $users = [];
+
+    foreach my $u (@{decode_json($response->content)})
+    {
+      my $user;
+
+      if ($options{verbose} or $options{VERBOSE})
+      {
+        $user = $self->get_user($u->{id});
+      }
+      else
+      {
+        $user = Codebits::User->new($u);
+      }
+
+      push(@{$users}, $user);
+    }
+
+    return $users;
+  }
+
+  $self->_set_errstr($response->status_line);
+  return 0;
 }
 
 
