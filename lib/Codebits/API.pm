@@ -14,7 +14,7 @@ has 'email' => (
   isa   => 'Str',
 );
 
-has 'pass' => (
+has 'password' => (
   is    => 'ro',
   isa   => 'Str',
 );
@@ -31,21 +31,27 @@ has 'errstr' => (
   isa   => 'Str',
 );
 
+has 'user_agent' => (
+  is => 'ro',
+  isa => 'LWP::UserAgent',
+  default => sub { LWP::UserAgent->new( agent => 'Codebits::API' ) },
+
+);
+
 # methods
 
 sub login
 {
   my $self  = shift;
-  my $ua    = LWP::UserAgent->new;
+  my $url   = "https://services.sapo.pt/Codebits/gettoken";
 
-  unless ((defined $self->email) && (defined $self->pass))
+  unless ((defined $self->email) && (defined $self->password))
   {
     $self->_set_errstr('invalid e-mail and/or password provided');
     return 0;
   }
   
-  my $request   = "https://services.sapo.pt/Codebits/gettoken?user=" . $self->email . "&password=" . $self->pass;
-  my $response = $ua->get($request);
+  my $response = $self->user_agent->post($url, [ user => $self->email, password => $self->password ]);
 
   if ($response->is_success)
   {
