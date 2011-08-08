@@ -90,6 +90,12 @@ sub get_user
   {
     my $u = decode_json($response->content);
 
+    if (defined $u->{error})
+    {
+      $self->_set_errstr($u->{error}->{msg});
+      return 0;
+    }
+
     # this value comes as undef if the user hasn't applied yet
     # and I don't really like that
     $u->{status} = 'undefined' unless(defined $u->{status});
@@ -117,8 +123,15 @@ sub get_user_friends
   if ($response->is_success)
   {
     my $friends = [];
+    my $content = decode_json($response->content);
 
-    foreach my $u (@{decode_json($response->content)})
+    if ((ref($content) eq 'HASH') and (defined $content->{error}))
+    {
+      $self->_set_errstr($content->{error}->{msg});
+      return 0;
+    }
+
+    foreach my $u (@{$content})
     {
       my $user;
 
