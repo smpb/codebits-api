@@ -1,25 +1,28 @@
 package Codebits::API;
 
+use namespace::autoclean;
 use LWP;
 use JSON;
 use Moose;
 use Moose::Util::TypeConstraints;
 use Email::Valid;
+use DateTime;
 
 use Codebits::User;
+use Codebits::Session;
 
 our $VERSION  = '0.1';
 our $AUTHORITY = 'SMPB';
 
 
 has 'email' => (
-  is    => 'ro',
-  isa   => subtype( 'Str' => where { Email::Valid->address($_) } ),
+  is  => 'ro',
+  isa => subtype( 'Str' => where { Email::Valid->address($_) } ),
 );
 
 has 'password' => (
-  is    => 'ro',
-  isa   => 'Str',
+  is  => 'ro',
+  isa => 'Str',
 );
 
 has 'token' => (
@@ -29,14 +32,14 @@ has 'token' => (
 );
 
 has 'errstr' => (
-  is        => 'ro',
-  writer => '_set_errstr',
-  isa   => 'Str',
+  is      => 'ro',
+  writer  => '_set_errstr',
+  isa     => 'Str',
 );
 
 has 'user_agent' => (
-  is => 'ro',
-  isa => 'LWP::UserAgent',
+  is      => 'ro',
+  isa     => 'LWP::UserAgent',
   default => sub { LWP::UserAgent->new( agent => 'Codebits::API' ) },
 
 );
@@ -191,6 +194,86 @@ sub get_accepted_users
   return 0;
 }
 
+sub get_user_sessions
+{
+  my ($self, $uid, %options) = @_;
+  my $url  = "https://services.sapo.pt/Codebits/usersessions/";
 
-no Moose;
+  unless (defined $uid)
+  {
+    $self->_set_errstr('valid user id needed');
+    return 0;
+  }
+
+  my $response = $self->user_agent->post($url . $uid, [ token => $self->token ]);
+
+  if ($response->is_success)
+  {
+    my $sessions = [];
+
+    foreach my $s (@{decode_json($response->content)})
+    {
+      my $session = Codebits::Session->new($s);
+
+      if ($options{verbose} or $options{VERBOSE})
+      {
+        my $user;
+        # TODO
+      }
+
+      push(@{$sessions}, $session);
+    }
+
+    return $sessions;
+  }
+
+  $self->_set_errstr($response->status_line);
+  return 0;
+}
+
+sub get_session
+{
+  my ($self, $sid) = @_;
+  my $url  = "https://services.sapo.pt/Codebits/session/";
+
+  unless (defined $sid)
+  {
+    $self->_set_errstr('valid session id needed');
+    return 0;
+  }
+
+  my $response = $self->user_agent->post($url . $sid, [ token => $self->token ]);
+
+  if ($response->is_success)
+  {
+    my $raw_session = decode_json($response->content);
+
+    my $speakers = [];
+    foreach my $u (@{$raw_session->{speakers}})
+    {
+      push(@{$speakers}, Codebits::User->new($u));
+    }
+    $raw_session->{speakers} = $speakers;
+
+    my $date;
+    if ($raw_session->{start} =~ /([0-9]+)-([0-9]+)-([0-9]+) ([0-9]+):([0-9]+):([0-9]+)/)
+    {
+      $raw_session->{start} = DateTime->new(
+        year    => $1,
+        month   => $2,
+        hour    => $3,
+        day     => $4,
+        minute  => $5,
+        second  => $6,
+      );
+    }
+
+    return Codebits::Session->new($raw_session);
+  }
+
+  $self->_set_errstr($response->status_line);
+  return 0;
+}
+
+
 1;
