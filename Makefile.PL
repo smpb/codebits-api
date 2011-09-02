@@ -19,6 +19,7 @@ WriteMakefile(
         'Crypt::SSLeay'   => 0.5,
         'Email::Valid'    => 0.1,
         'Regexp::Common'  => 1,
+        'namespace::autoclean'  => 0,
         'LWP::Protocol::https'  => 1,
     },
     dist    => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
