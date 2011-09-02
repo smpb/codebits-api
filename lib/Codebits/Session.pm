@@ -30,7 +30,10 @@ has [ 'lang', 'pfile', 'slideshare', 'description', 'placename', 'title' ] => (
 
 has 'video' => (
   is  => 'rw',
-  isa => subtype( 'Str' => where { $_ eq '' or $_ =~ /$RE{URI}{HTTP}/ } ),
+  isa => subtype( 'Str' => where { $_ =~ s/https/http/i;
+      $_ eq '' or
+      $_ =~ /$RE{URI}{HTTP}/
+    } ),
 );
 
 has 'start' => (
@@ -67,4 +70,4 @@ sub _start_date
 }
 
 
-1;
+42;
