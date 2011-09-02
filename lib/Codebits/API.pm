@@ -9,6 +9,7 @@ use Email::Valid;
 use DateTime;
 
 use Codebits::User;
+use Codebits::Talk;
 use Codebits::Session;
 
 our $VERSION  = '0.1';
@@ -62,9 +63,10 @@ sub login
   if ($response->is_success)
   {
     my $obj = decode_json($response->content);
-    if (defined $obj->{'error'})
+
+    if (defined $obj->{error})
     {
-      $self->_set_errstr($obj->{'error'}->{'msg'});
+      $self->_set_errstr($obj->{error}->{msg});
       return 0;
     }
 
@@ -79,7 +81,7 @@ sub login
 sub get_user
 {
   my ($self, $uid) = @_;
-  my $url  = "https://services.sapo.pt/Codebits/user/";
+  my $url = "https://services.sapo.pt/Codebits/user/";
 
   unless (defined $uid)
   {
@@ -113,7 +115,7 @@ sub get_user
 sub get_user_friends
 {
   my ($self, $uid, %options) = @_;
-  my $url  = "https://services.sapo.pt/Codebits/foaf/";
+  my $url = "https://services.sapo.pt/Codebits/foaf/";
 
   unless (defined $uid)
   {
@@ -163,7 +165,7 @@ sub get_user_friends
 sub get_accepted_users
 {
   my ($self, %options) = @_;
-  my $url  = "https://services.sapo.pt/Codebits/users/";
+  my $url = "https://services.sapo.pt/Codebits/users/";
 
   my $response = $self->user_agent->post($url, [ token => $self->token ]);
 
@@ -197,7 +199,7 @@ sub get_accepted_users
 sub get_user_sessions
 {
   my ($self, $uid, %options) = @_;
-  my $url  = "https://services.sapo.pt/Codebits/usersessions/";
+  my $url = "https://services.sapo.pt/Codebits/usersessions/";
 
   unless (defined $uid)
   {
@@ -234,7 +236,7 @@ sub get_user_sessions
 sub get_session
 {
   my ($self, $sid) = @_;
-  my $url  = "https://services.sapo.pt/Codebits/session/";
+  my $url = "https://services.sapo.pt/Codebits/session/";
 
   unless (defined $sid)
   {
@@ -248,6 +250,12 @@ sub get_session
   {
     my $raw_session = decode_json($response->content);
 
+    if (defined $raw_session->{error})
+    {
+      $self->_set_errstr($raw_session->{error}->{msg});
+      return 0;
+    }
+
     my $speakers = [];
     foreach my $u (@{$raw_session->{speakers}})
     {
@@ -255,14 +263,13 @@ sub get_session
     }
     $raw_session->{speakers} = $speakers;
 
-    my $date;
     if ($raw_session->{start} =~ /([0-9]+)-([0-9]+)-([0-9]+) ([0-9]+):([0-9]+):([0-9]+)/)
     {
       $raw_session->{start} = DateTime->new(
         year    => $1,
         month   => $2,
-        hour    => $3,
-        day     => $4,
+        day     => $3,
+        hour    => $4,
         minute  => $5,
         second  => $6,
       );
@@ -275,5 +282,92 @@ sub get_session
   return 0;
 }
 
+sub get_proposed_talks
+{
+  my $self = shift;
+  my $url = "https://services.sapo.pt/Codebits/calltalks/";
 
-1;
+  my $response = $self->user_agent->post($url);
+
+  if ($response->is_success)
+  {
+    my $talks = [];
+    foreach my $raw_talk (@{decode_json($response->content)})
+    {
+      $raw_talk->{user} = $self->get_user($raw_talk->{userid});
+      delete $raw_talk->{userid};
+
+      if ($raw_talk->{regdate} =~ /([0-9]+)-([0-9]+)-([0-9]+) ([0-9]+):([0-9]+):([0-9]+)/)
+      {
+        $raw_talk->{regdate} = DateTime->new(
+          year    => $1,
+          month   => $2,
+          day     => $3,
+          hour    => $4,
+          minute  => $5,
+          second  => $6,
+        );
+      }
+
+      push(@$talks, Codebits::Talk->new($raw_talk));
+    }
+
+    return $talks;
+  }
+
+  $self->_set_errstr($response->status_line);
+  return 0;
+}
+
+sub talk_upvote
+{
+  my ($self, $id) = @_;
+  my $url = "https://services.sapo.pt/Codebits/calluptalk/";
+
+  return $self->_vote($url, $id);
+}
+
+sub talk_downvote
+{
+  my ($self, $id) = @_;
+  my $url = "https://services.sapo.pt/Codebits/calldowntalk/";
+
+  return $self->_vote($url, $id);
+}
+
+sub _vote
+{
+  my ($self, $url, $id) = @_;
+
+  unless (defined $id)
+  {
+    $self->_set_errstr('valid proposed talk id needed');
+    return 0;
+  }
+
+  my $response = $self->user_agent->post($url . $id, [ token => $self->token ]);
+
+  if ($response->is_success)
+  {
+    if ($response->content ne '')
+    {
+      my $obj = decode_json($response->content);
+
+      if (defined $obj->{error})
+      {
+        $self->_set_errstr($obj->{error}->{msg});
+        return 0;
+      }
+
+      return $obj;
+    }
+
+    return 1;
+  }
+
+  $self->_set_errstr($response->status_line);
+  return 0;
+}
+
+
+42;
