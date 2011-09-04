@@ -151,10 +151,61 @@ sub get_user_friends
         $user = Codebits::User->new($u);
       }
 
+      $user->set_foaf_state($uid, $u->{state});
       push(@{$friends}, $user);
     }
 
     return $friends;
+  }
+
+  $self->_set_errstr($response->status_line);
+  return 0;
+}
+
+sub friend_accept
+{
+  my ($self, $id) = @_;
+  my $url = "https://services.sapo.pt/Codebits/foafadd/";
+
+  return $self->_foaf($url, $id);
+}
+
+sub friend_reject
+{
+  my ($self, $id) = @_;
+  my $url = "https://services.sapo.pt/Codebits/foafreject/";
+
+  return $self->_foaf($url, $id);
+}
+
+sub _foaf
+{
+  my ($self, $url, $id) = @_;
+
+  unless (defined $id)
+  {
+    $self->_set_errstr('valid user id needed');
+    return 0;
+  }
+
+  my $response = $self->user_agent->post($url . $id, [ token => $self->token ]);
+
+  if ($response->is_success)
+  {
+    if ($response->content ne '')
+    {
+      my $obj = decode_json($response->content);
+
+      if (defined $obj->{error})
+      {
+        $self->_set_errstr($obj->{error}->{msg});
+        return 0;
+      }
+
+      return $obj;
+    }
+
+    return 1;
   }
 
   $self->_set_errstr($response->status_line);

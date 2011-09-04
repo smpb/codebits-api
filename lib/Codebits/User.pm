@@ -7,7 +7,7 @@ use Regexp::Common qw/URI/;
 
 enum 'Skill', [ qw/api cc clojure cocoa cooking css dbdesign design desktop dotnet embbeded erlang hardware java javascript max microformats mobile nosql perl php processing python ruby scala security sysadmin visualization web/ ];
 
-# TODO - I don't yet know the designation for the rejected users
+# TODO - I don't know the designation for the rejected users, yet
 enum 'Status', [ qw/undefined notapplied accepted review/ ];
 
 
@@ -42,6 +42,18 @@ has 'skills' => (
 has 'md5mail' => (
   is  => 'rw',
   isa => subtype( 'Str' => where { $_ =~ /[0-9a-f]{32}/i } ),
+);
+
+has '_foaf_state' => (
+  is      => 'rw',
+  isa     => 'HashRef',
+  traits  => [ 'Hash' ],
+  handles => {
+    has_foaf_state  => 'exists',
+    ids_foaf_state  => 'keys',
+    get_foaf_state  => 'get',
+    set_foaf_state  => 'set',
+  },
 );
 
 
