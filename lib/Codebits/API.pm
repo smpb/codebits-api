@@ -116,6 +116,7 @@ sub get_user_friends
 {
   my ($self, $uid, %options) = @_;
   my $url = "https://services.sapo.pt/Codebits/foaf/";
+  %options = map { lc $_ => $options{$_} } keys %options;
 
   unless (defined $uid)
   {
@@ -140,7 +141,7 @@ sub get_user_friends
     {
       my $user;
 
-      if ($options{verbose} or $options{VERBOSE})
+      if ($options{verbose})
       {
         $user = $self->get_user($u->{id});
         $user->md5mail($u->{md5mail});
@@ -160,12 +161,12 @@ sub get_user_friends
   return 0;
 }
 
-# TODO - It should've been possible to filter this list by skill, but the API appears
-# to be buggy and doesn't behave as advertised
 sub get_accepted_users
 {
   my ($self, %options) = @_;
   my $url = "https://services.sapo.pt/Codebits/users/";
+  %options = map { lc $_ => $options{$_} } keys %options;
+  $url .= $options{skill} if ($options{skill});
 
   my $response = $self->user_agent->post($url, [ token => $self->token ]);
 
@@ -177,7 +178,7 @@ sub get_accepted_users
     {
       my $user;
 
-      if ($options{verbose} or $options{VERBOSE})
+      if ($options{verbose})
       {
         $user = $self->get_user($u->{id});
       }
@@ -200,6 +201,7 @@ sub get_user_sessions
 {
   my ($self, $uid, %options) = @_;
   my $url = "https://services.sapo.pt/Codebits/usersessions/";
+  %options = map { lc $_ => $options{$_} } keys %options;
 
   unless (defined $uid)
   {
@@ -217,7 +219,7 @@ sub get_user_sessions
     {
       my $session = Codebits::Session->new($s);
 
-      if ($options{verbose} or $options{VERBOSE})
+      if ($options{verbose})
       {
         my $user;
         # TODO
