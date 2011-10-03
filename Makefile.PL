@@ -7,10 +7,7 @@ WriteMakefile(
     AUTHOR              => q{Sérgio Bernardino <me@sergiobernardino.net>},
     VERSION_FROM        => 'lib/Codebits/API.pm',
     ABSTRACT            => 'Codebits API implementation.',
-    ($ExtUtils::MakeMaker::VERSION >= 6.3002
-      ? ('LICENSE'=> 'perl')
-      : ()),
-    PL_FILES            => {},
+    LICENSE             => 'perl',
     PREREQ_PM => {
         'Test::More'      => 0,
         'JSON'            => 0,
