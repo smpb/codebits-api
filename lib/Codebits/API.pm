@@ -10,6 +10,7 @@ use DateTime;
 
 use Codebits::User;
 use Codebits::Talk;
+use Codebits::Badge;
 use Codebits::Session;
 
 our $VERSION  = '0.1';
@@ -416,6 +417,74 @@ sub _vote
     }
 
     return 1;
+  }
+
+  $self->_set_errstr($response->status_line);
+  return 0;
+}
+
+sub get_badges
+{
+  my $self = shift;
+  my $url = "https://services.sapo.pt/Codebits/listbadges";
+
+  my $response = $self->user_agent->post($url);
+
+  if ($response->is_success)
+  {
+    my $badges = [];
+    my $content = decode_json($response->content);
+
+    if ((ref($content) eq 'HASH') and (defined $content->{error}))
+    {
+      $self->_set_errstr($content->{error}->{msg});
+      return 0;
+    }
+
+    foreach my $raw_badge (@$content)
+    {
+      push(@$badges, Codebits::Badge->new($raw_badge));
+    }
+
+    return $badges;
+  }
+
+  $self->_set_errstr($response->status_line);
+  return 0;
+}
+
+sub get_badges_users
+{
+  my ($self, $id, %options) = @_;
+  my $url = "https://services.sapo.pt/Codebits/badgesusers/";
+  %options = map { lc $_ => $options{$_} } keys %options;
+
+  my $response = $self->user_agent->post($url . $id);
+
+  if ($response->is_success)
+  {
+    my $users = [];
+
+    foreach my $u (@{decode_json($response->content)})
+    {
+      my $user;
+
+      $u->{id} = delete $u->{uid};
+
+      if ($options{verbose})
+      {
+        $user = $self->get_user($u->{id});
+        $user->md5mail($u->{md5mail});
+      }
+      else
+      {
+        $user = Codebits::User->new($u);
+      }
+
+      push(@{$users}, { user => $user, proofurl => $u->{proofurl} });
+    }
+
+    return $users;
   }
 
   $self->_set_errstr($response->status_line);
