@@ -13,7 +13,7 @@ has 'id' => (
 
 has 'usercount' => (
   is  => 'rw',
-  isa => subtype( 'Int' => where { $_ > 0 } ), 
+  isa => subtype( 'Int' => where { $_ >= 0 } ),
 );
 
 has [ 'title', 'description' ] => (
