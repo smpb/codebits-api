@@ -7,8 +7,7 @@ use Regexp::Common qw/URI/;
 
 enum 'Skill', [ qw/api cc clojure cocoa cooking css dbdesign design desktop dotnet embbeded erlang hardware java javascript max microformats mobile nosql perl php processing python ruby scala security sysadmin visualization web/ ];
 
-# TODO - I don't know the designation for the rejected users, yet
-enum 'Status', [ qw/undefined notapplied accepted review/ ];
+enum 'Status', [ qw/notapplied accepted rejected canceled review/ ];
 
 
 has [ 'id', 'karma' ] => (

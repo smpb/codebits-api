@@ -13,7 +13,6 @@ use Codebits::Talk;
 use Codebits::Badge;
 use Codebits::Session;
 
-our $VERSION  = '0.1';
 our $AUTHORITY = 'SMPB';
 
 
@@ -102,9 +101,6 @@ sub get_user
       return 0;
     }
 
-    # this value comes as undef if the user hasn't applied yet
-    # and I don't really like that
-    $u->{status} = 'undefined' unless(defined $u->{status});
     my $user = Codebits::User->new($u);
     return $user;
   }
