@@ -1,0 +1,11 @@
+Build.PL
+lib/Codebits/API.pm
+lib/Codebits/Badge.pm
+lib/Codebits/Calendar.pm
+lib/Codebits/Role/Speaker.pm
+lib/Codebits/Session.pm
+lib/Codebits/Talk.pm
+lib/Codebits/User.pm
+Makefile.PL
+MANIFEST			This list of files
+README.md
