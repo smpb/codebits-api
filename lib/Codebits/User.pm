@@ -12,7 +12,7 @@ enum 'Status', [ qw/notapplied accepted rejected canceled review/ ];
 
 has [ 'id', 'karma' ] => (
   is  => 'ro',
-  isa => subtype( 'Int' => where { $_ > 0 } ),
+  isa => subtype( 'Int' => where { $_ >= 0 } ),
 );
 
 has [ 'blog', 'coderep' ] => (
@@ -28,7 +28,7 @@ has 'status' => (
   isa => 'Status',
 );
 
-has [ 'bio', 'name', 'nick', 'twitter' ] => (
+has [ 'bio', 'name', 'nick', 'twitter', 'teesize' ] => (
   is  => 'rw',
   isa => 'Str',
 );
@@ -36,6 +36,11 @@ has [ 'bio', 'name', 'nick', 'twitter' ] => (
 has 'skills' => (
   is  => 'rw',
   isa => 'ArrayRef[Skill]',
+);
+
+has 'sapo' => (
+  is  => 'rw',
+  isa => 'Bool',
 );
 
 has 'md5mail' => (
