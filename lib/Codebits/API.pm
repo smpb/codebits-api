@@ -11,10 +11,11 @@ use DateTime;
 use Codebits::User;
 use Codebits::Talk;
 use Codebits::Badge;
+use Codebits::Activity;
 use Codebits::Session;
 
 our $AUTHORITY = 'SMPB';
-
+our $timezone = DateTime::TimeZone->new( name => 'local' );
 
 has 'email' => (
   is  => 'ro',
@@ -265,13 +266,35 @@ sub get_user_sessions
 
     foreach my $s (@{decode_json($response->content)})
     {
-      my $session = Codebits::Session->new($s);
+      # AFAIK, this value always comes as 'undef' in this call
+      # this is probably because of a bug in the API, so I don't care for it
+      delete $s->{lang} unless(defined $s->{lang});
 
-      if ($options{verbose})
+      # this is another bug in this API call:
+      # 'place' should be an integer id and 'placename' is its string name
+      if ($s->{place} =~ /[a-z]+/i)
       {
-        my $user;
-        # TODO
+        $s->{placename} = $s->{place};
+        delete $s->{place};
       }
+
+      for my $date (qw/ start end /)
+      {
+        if ((defined $s->{$date}) and
+            ($s->{$date} =~ /([0-9]+)-([0-9]+)-([0-9]+) ([0-9]+):([0-9]+)/))
+        {
+          $s->{$date} = DateTime->new(
+            year      => $1,
+            month     => $2,
+            day       => $3,
+            hour      => $4,
+            minute    => $5,
+            time_zone => $timezone,
+          );
+        }
+      }
+
+      my $session = Codebits::Session->new($s);
 
       push(@{$sessions}, $session);
     }
@@ -313,16 +336,20 @@ sub get_session
     }
     $raw_session->{speakers} = $speakers;
 
-    if ($raw_session->{start} =~ /([0-9]+)-([0-9]+)-([0-9]+) ([0-9]+):([0-9]+):([0-9]+)/)
+    for my $date (qw/ start end /)
     {
-      $raw_session->{start} = DateTime->new(
-        year    => $1,
-        month   => $2,
-        day     => $3,
-        hour    => $4,
-        minute  => $5,
-        second  => $6,
-      );
+      if ((defined $raw_session->{$date}) and
+          ($raw_session->{$date} =~ /([0-9]+)-([0-9]+)-([0-9]+) ([0-9]+):([0-9]+)/))
+      {
+        $raw_session->{$date} = DateTime->new(
+          year      => $1,
+          month     => $2,
+          day       => $3,
+          hour      => $4,
+          minute    => $5,
+          time_zone => $timezone,
+        );
+      }
     }
 
     return Codebits::Session->new($raw_session);
@@ -347,15 +374,15 @@ sub get_proposed_talks
       $raw_talk->{user} = $self->get_user($raw_talk->{userid});
       delete $raw_talk->{userid};
 
-      if ($raw_talk->{regdate} =~ /([0-9]+)-([0-9]+)-([0-9]+) ([0-9]+):([0-9]+):([0-9]+)/)
+      if ($raw_talk->{regdate} =~ /([0-9]+)-([0-9]+)-([0-9]+) ([0-9]+):([0-9]+)/)
       {
         $raw_talk->{regdate} = DateTime->new(
-          year    => $1,
-          month   => $2,
-          day     => $3,
-          hour    => $4,
-          minute  => $5,
-          second  => $6,
+          year      => $1,
+          month     => $2,
+          day       => $3,
+          hour      => $4,
+          minute    => $5,
+          time_zone => $timezone,
         );
       }
 
@@ -481,6 +508,67 @@ sub get_badges_users
     }
 
     return $users;
+  }
+
+  $self->_set_errstr($response->status_line);
+  return 0;
+}
+
+sub get_calendar
+{
+  my $self = shift;
+  my $url = "https://services.sapo.pt/Codebits/calendar/";
+
+  my $response = $self->user_agent->post($url, [ token => $self->token ]);
+
+  if ($response->is_success)
+  {
+    my $calendar = [];
+
+    foreach my $raw_activity (@{decode_json($response->content)})
+    {
+      for my $date (qw/ start end /)
+      {
+        if ((defined $raw_activity->{$date}) and
+            ($raw_activity->{$date} =~ /([0-9]+)-([0-9]+)-([0-9]+) ([0-9]+):([0-9]+)/))
+        {
+          $raw_activity->{$date} = DateTime->new(
+            year      => $1,
+            month     => $2,
+            day       => $3,
+            hour      => $4,
+            minute    => $5,
+            time_zone => $timezone,
+          );
+        }
+      }
+
+      my $activity;
+
+      if (defined $raw_activity->{'id'}) # is it a session?
+      {
+        my $speakers = [];
+        foreach my $sp (@{$raw_activity->{speakers}})
+        {
+          my $speaker = $self->get_user($sp->{id});
+          $speaker->md5mail($sp->{md5mail});
+          $speaker->sapo($sp->{sapo});
+          $speaker->teesize($sp->{teesize});
+
+          push(@$speakers, $speaker);
+        }
+        $raw_activity->{speakers} = $speakers;
+        $activity = Codebits::Session->new($raw_activity);
+      }
+      else # it's a generic codebits activity
+      {
+        $activity = Codebits::Activity->new($raw_activity);
+      }
+
+      push(@$calendar, $activity);
+    }
+
+    return $calendar;
   }
 
   $self->_set_errstr($response->status_line);
