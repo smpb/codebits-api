@@ -1,9 +1,11 @@
 Build.PL
+lib/Codebits/Activity.pm
 lib/Codebits/API.pm
 lib/Codebits/Badge.pm
-lib/Codebits/Calendar.pm
+lib/Codebits/Project.pm
 lib/Codebits/Session.pm
 lib/Codebits/Talk.pm
 lib/Codebits/User.pm
 MANIFEST
 README.md
+t/codebits.t

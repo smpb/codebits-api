@@ -13,6 +13,7 @@ use Codebits::Talk;
 use Codebits::Badge;
 use Codebits::Activity;
 use Codebits::Session;
+use Codebits::Project;
 
 our $AUTHORITY = 'SMPB';
 our $timezone = DateTime::TimeZone->new( name => 'local' );
@@ -401,7 +402,7 @@ sub talk_upvote
   my ($self, $id) = @_;
   my $url = "https://services.sapo.pt/Codebits/calluptalk/";
 
-  return $self->_vote($url, $id);
+  return $self->_vote_talk($url, $id);
 }
 
 sub talk_downvote
@@ -409,10 +410,10 @@ sub talk_downvote
   my ($self, $id) = @_;
   my $url = "https://services.sapo.pt/Codebits/calldowntalk/";
 
-  return $self->_vote($url, $id);
+  return $self->_vote_talk($url, $id);
 }
 
-sub _vote
+sub _vote_talk
 {
   my ($self, $url, $id) = @_;
 
@@ -569,6 +570,168 @@ sub get_calendar
     }
 
     return $calendar;
+  }
+
+  $self->_set_errstr($response->status_line);
+  return 0;
+}
+
+sub get_projects
+{
+  my $self = shift;
+  my $url = "https://services.sapo.pt/Codebits/projects";
+
+  my $response = $self->user_agent->post($url, [ token => $self->token ]);
+
+  if ($response->is_success)
+  {
+    my $projects = [];
+
+    foreach my $raw_project (@{decode_json($response->content)})
+    {
+      # AFAIK, this value always comes as 'undef' in this call
+      # besides, what we want is 'date_created' and 'date_modified' fields,
+      # so I don't care for it
+      delete $raw_project->{regdate};
+      my $project = Codebits::Project->new($raw_project);
+
+      push(@$projects, $project);
+    }
+
+    return $projects;
+  }
+
+  $self->_set_errstr($response->status_line);
+  return 0;
+}
+
+sub get_project
+{
+  my ($self, $pid, %options) = @_;
+  my $url = "https://services.sapo.pt/Codebits/project/";
+  %options = map { lc $_ => $options{$_} } keys %options;
+
+  unless (defined $pid)
+  {
+    $self->_set_errstr('valid project id needed');
+    return 0;
+  }
+
+  my $response = $self->user_agent->post($url . $pid, [ token => $self->token ]);
+
+  if ($response->is_success)
+  {
+    my $raw_project = decode_json($response->content);
+
+    if (defined $raw_project->{error})
+    {
+      $self->_set_errstr($raw_project->{error}->{msg});
+      return 0;
+    }
+
+    my $users = [];
+    foreach my $u (@{$raw_project->{users}})
+    {
+      my $user;
+      if ($options{verbose})
+      {
+        $user = $self->get_user($u->{id});
+        $user->md5mail($u->{md5mail});
+      }
+      else
+      {
+        $user = Codebits::User->new($u);
+      }
+
+      for my $date (qw/ date_created date_modified /)
+      {
+        if ((defined $raw_project->{$date}) and
+            ($raw_project->{$date} =~ /([0-9]+)-([0-9]+)-([0-9]+) ([0-9]+):([0-9]+)/))
+        {
+          $raw_project->{$date} = DateTime->new(
+            year      => $1,
+            month     => $2,
+            day       => $3,
+            hour      => $4,
+            minute    => $5,
+            time_zone => $timezone,
+          );
+        }
+      }
+
+      push(@$users, $user);
+    }
+    $raw_project->{users} = $users;
+
+    return Codebits::Project->new($raw_project);
+  }
+
+  $self->_set_errstr($response->status_line);
+  return 0;
+}
+
+sub get_project_votes
+{
+  my ($self, %options) = @_;
+  my $url = "https://services.sapo.pt/Codebits/votes/";
+  %options = map { lc $_ => $options{$_} } keys %options;
+
+  my $response = $self->user_agent->post($url);
+
+  if ($response->is_success)
+  {
+    my $votes = decode_json($response->content);
+
+    if ($options{verbose})
+    {
+      $votes->{project} = $self->get_project($votes->{project});
+    }
+
+    return $votes;
+  }
+
+  $self->_set_errstr($response->status_line);
+  return 0;
+}
+
+sub project_upvote
+{
+  my ($self, %options) = @_;
+
+  return $self->_vote_project(1, %options);
+}
+
+sub project_downvote
+{
+  my ($self, %options) = @_;
+
+  return $self->_vote_project(0, %options);
+}
+
+sub _vote_project
+{
+  my ($self, $vote, %options) = @_;
+  my $url = "https://services.sapo.pt/Codebits/vote/";
+  %options = map { lc $_ => $options{$_} } keys %options;
+
+  my $response = $self->user_agent->post($url . $vote, [ token => $self->token ]);
+
+  if ($response->is_success)
+  {
+    my $vote = decode_json($response->content);
+
+    if (defined $vote->{error})
+    {
+      $self->_set_errstr($vote->{error}->{msg});
+      return 0;
+    }
+
+    if ($options{verbose})
+    {
+      $vote->{project} = $self->get_project($vote->{project});
+    }
+
+    return $vote;
   }
 
   $self->_set_errstr($response->status_line);

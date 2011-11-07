@@ -16,6 +16,7 @@ use Codebits::User;
 use Codebits::Badge;
 use Codebits::Activity;
 use Codebits::Session;
+use Codebits::Project;
 
 BEGIN
 {
@@ -24,6 +25,7 @@ BEGIN
   use_ok('Codebits::Badge');
   use_ok('Codebits::Activity');
   use_ok('Codebits::Session');
+  use_ok('Codebits::Project');
 }
 
 my $term = Term::ReadLine->new('Test questions');
@@ -60,7 +62,7 @@ SKIP:
 
   my $user_id = $api->login;
   ok($user_id > 0, 'Login sucessful.');
-  
+
   my $user = $api->get_user($user_id);
   meta_ok($user);
   isa_ok($user, 'Codebits::User');
@@ -83,6 +85,21 @@ SKIP:
   isa_ok(shift $api->get_proposed_talks, 'Codebits::Talk');
 
   isa_ok(shift $api->get_calendar, 'Codebits::Activity');
+
+  isa_ok(shift $api->get_projects, 'Codebits::Project');
+  isa_ok($api->get_project(253), 'Codebits::Project');
+
+  my $votes = $api->get_project_votes;
+  ok($votes->{yes} =~ /\d+/, 'We have the number of "yes" from the votes');
+  ok($votes->{no} =~ /\d+/, 'We have the number of "no" from the votes');
+  ok($votes->{project} =~ /\d+/, 'We have a project id from the votes');
+  $votes = $api->get_project_votes(verbose => 1);
+  isa_ok($votes->{project}, 'Codebits::Project');
+  my $vote = $api->project_downvote;
+  ok($vote->{project} =~ /\d+/, 'We have a project id from the vote');
+  ok($vote->{result} =~ /\d+/, 'We have a result from our vote');
+  $vote = $api->project_upvote(verbose => 1);
+  isa_ok($vote->{project}, 'Codebits::Project');
 };
 
 done_testing;
