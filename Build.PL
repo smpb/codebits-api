@@ -22,6 +22,7 @@ my $build = Module::Build->new(
     'Regexp::Common'        => 1,
     'namespace::autoclean'  => 0,
     'LWP::Protocol::https'  => 1,
+    'URI::Escape'           => 3,
   },
   build_requires      => { 'Test::More'     => 0 },
   configure_requires  => { 'Module::Build'  => 0 },

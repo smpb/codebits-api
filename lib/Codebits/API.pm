@@ -738,5 +738,107 @@ sub _vote_project
   return 0;
 }
 
+sub get_bot_parts
+{
+  my $self = shift;
+  my $url = "https://services.sapo.pt/Codebits/botparts";
+
+  my $response = $self->user_agent->post($url);
+
+  if ($response->is_success)
+  {
+    return decode_json($response->content);
+  }
+
+  $self->_set_errstr($response->status_line);
+  return 0;
+}
+
+sub make_bot
+{
+  my ($self, $bot) = @_;
+  my $url = "https://services.sapo.pt/Codebits/botmake/";
+
+  unless (defined $bot and $bot->isa('Codebits::Bot'))
+  {
+    $self->_set_errstr('valid bot needed');
+    return 0;
+  }
+
+  my $response = $self->user_agent->post($url . $bot->serialize);
+
+  if ($response->is_success)
+  {
+    return $response->content;
+  }
+
+  $self->_set_errstr($response->status_line);
+  return 0;
+}
+
+sub get_user_bot
+{
+  my ($self, $uid) = @_;
+  my $url = "https://services.sapo.pt/Codebits/botuser/";
+
+  unless (defined $uid)
+  {
+    $self->_set_errstr('valid user id needed');
+    return 0;
+  }
+
+  my $response = $self->user_agent->post($url . $uid);
+
+  if ($response->is_success)
+  {
+    my $b = decode_json($response->content);
+
+    # reset field to an empty string if an object is found
+    # the existance of the object here can only mean it's a boolean false
+    $b->{balloon} = '' if (ref $b->{balloon});
+
+    if (defined $b->{error})
+    {
+      $self->_set_errstr($b->{error}->{msg});
+      return 0;
+    }
+
+    return Codebits::Bot->new($b);
+  }
+
+  $self->_set_errstr($response->status_line);
+  return 0;
+}
+
+sub set_user_bot
+{
+  my ($self, $bot) = @_;
+  my $url = "https://services.sapo.pt/Codebits/botset/";
+
+  unless (defined $bot and $bot->isa('Codebits::Bot'))
+  {
+    $self->_set_errstr('valid bot needed');
+    return 0;
+  }
+
+  my $response = $self->user_agent->post($url . $bot->serialize, [ token => $self->token ]);
+
+  if ($response->is_success)
+  {
+    my $obj = decode_json($response->content);
+
+    if (defined $obj->{error})
+    {
+      $self->_set_errstr($obj->{error}->{msg});
+      return 0;
+    }
+
+    return 1;
+  }
+
+  $self->_set_errstr($response->status_line);
+  return 0;
+}
+
 
 42;

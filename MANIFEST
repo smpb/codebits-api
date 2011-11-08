@@ -2,6 +2,7 @@ Build.PL
 lib/Codebits/Activity.pm
 lib/Codebits/API.pm
 lib/Codebits/Badge.pm
+lib/Codebits/Bot.pm
 lib/Codebits/Project.pm
 lib/Codebits/Session.pm
 lib/Codebits/Talk.pm

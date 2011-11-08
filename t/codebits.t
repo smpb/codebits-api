@@ -5,7 +5,6 @@ use strict;
 use autodie;
 use warnings;
 
-use Data::Dump;
 use Test::More;
 use Test::Moose;
 use Term::UI;
@@ -17,6 +16,7 @@ use Codebits::Badge;
 use Codebits::Activity;
 use Codebits::Session;
 use Codebits::Project;
+use Codebits::Bot;
 
 BEGIN
 {
@@ -26,6 +26,7 @@ BEGIN
   use_ok('Codebits::Activity');
   use_ok('Codebits::Session');
   use_ok('Codebits::Project');
+  use_ok('Codebits::Bot');
 }
 
 my $term = Term::ReadLine->new('Test questions');
@@ -100,6 +101,8 @@ SKIP:
   ok($vote->{result} =~ /\d+/, 'We have a result from our vote');
   $vote = $api->project_upvote(verbose => 1);
   isa_ok($vote->{project}, 'Codebits::Project');
+
+  isa_ok($api->get_user_bot(10), 'Codebits::Bot');
 };
 
 done_testing;
